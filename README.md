@@ -6,8 +6,9 @@ These examples introduce the UPMEM programming model one step at a time:
 2. `sum_dpus` — split an array across multiple simulated DPUs and combine their partial sums.
 3. `tasklets` — add multiple tasklets per DPU, shared partial results, and barrier synchronization.
 4. `cooperative_sum` — overlap host CPU work with an asynchronous DPU computation, then synchronize and combine both results.
+5. `mram_sum` — move array blocks explicitly from DPU MRAM to a WRAM buffer with `mram_read` before summing them.
 
-Progression: `increment` → `sum_dpus` → `tasklets` → `cooperative_sum`.
+Progression: `increment` → `sum_dpus` → `tasklets` → `cooperative_sum` → `mram_sum`.
 
 Each directory contains its own README and Makefile. Run an example with:
 
