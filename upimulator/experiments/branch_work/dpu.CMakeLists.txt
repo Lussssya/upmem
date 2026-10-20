@@ -1,0 +1,5 @@
+set(CMAKE_C_FLAGS "-w -O2 -S -DNR_TASKLETS=${NR_TASKLETS}")
+
+file(GLOB_RECURSE SRCS *.c)
+
+add_executable(BRANCH_WORK_device ${SRCS})
