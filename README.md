@@ -1,5 +1,10 @@
 # Processing-in-Memory Capstone Experiments
 
+This repository contains experiments for my undergraduate capstone research on
+Processing-in-Memory (PIM). I am using the UPMEM programming model and
+uPIMulator to understand DPU architecture and study how computation, memory
+access, and tasklet-level parallelism affect simulated execution behavior.
+
 ## Repository contents
 
 ### UPMEM SDK experiments
