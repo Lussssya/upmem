@@ -34,7 +34,6 @@ experiments for studying simulated DPU cycles:
 
 - `increment`
 - `loop_add`
-- `branch_work`
 - `wram_sum`
 - `mram_sum`
 - `tasklet_sum`

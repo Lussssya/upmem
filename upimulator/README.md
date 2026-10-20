@@ -20,7 +20,6 @@ Every directory under `experiments/` keeps the important parts separate:
 | --- | --- | --- |
 | `increment` | input value | Small correctness and cycle-reporting smoke test |
 | `loop_add` | loop iterations | Cycle scaling as computation increases |
-| `branch_work` | selected branch | Compare short and long execution paths |
 | `wram_sum` | elements, 1–256 | WRAM summation baseline |
 | `mram_sum` | elements, 1–256 | Explicit MRAM-to-WRAM block transfers |
 | `tasklet_sum` | tasklets, 1–24 | Intra-DPU parallelism and synchronization overhead |
@@ -61,8 +60,6 @@ cd uPIMulator/golang/uPIMulator
 
 ./run_increment.sh 41
 ./run_loop_add.sh 100
-./run_branch_work.sh 0
-./run_branch_work.sh 1
 ./run_wram_sum.sh 128
 ./run_mram_sum.sh 128
 ./run_tasklet_sum.sh 12
