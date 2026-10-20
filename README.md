@@ -1,14 +1,11 @@
 # Processing-in-Memory Capstone Experiments
 
-This repository is not just a collection of learning examples. It contains the
-experiments for a Processing-in-Memory capstone project, covering both the UPMEM
-SDK programming model and simulated cycle studies with uPIMulator.
-
 ## Repository contents
 
 ### UPMEM SDK experiments
 
-The top-level C examples exercise the regular UPMEM host/DPU programming flow:
+The [`upmem/`](upmem/) directory contains C experiments using the regular UPMEM
+host/DPU programming flow:
 
 1. `increment` — transfer one value to a DPU and read the incremented result.
 2. `sum_dpus` — split an array across multiple DPUs and combine partial sums.
@@ -19,7 +16,7 @@ The top-level C examples exercise the regular UPMEM host/DPU programming flow:
 Each directory contains `host.c`, `dpu.c`, a `Makefile`, and its own README.
 
 ```bash
-cd increment
+cd upmem/increment
 make clean
 make
 make run
