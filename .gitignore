@@ -1,1 +1,12 @@
 **/build/
+**/__pycache__/
+**/.pytest_cache/
+*.pyc
+**/*.o
+**/*.so
+upimulator/engine/c/engine
+.DS_Store
+upimulator/**/bin/
+upimulator/**/actual_output.bin
+upimulator/**/log.txt
+upimulator/**/options.txt

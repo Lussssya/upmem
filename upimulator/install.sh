@@ -72,6 +72,9 @@ install_experiment() {
 }
 
 install_experiment increment INCREMENT increment
+install_experiment distributed_sum DISTRIBUTED_SUM distributed_sum
+install_experiment distributed_sum_mram DISTRIBUTED_SUM_MRAM distributed_sum_mram
+install_experiment scalar_workload SCALAR_WORKLOAD scalar_workload
 install_experiment loop_add LOOP_ADD loop_add
 install_experiment wram_sum WRAM_SUM wram_sum
 install_experiment mram_sum MRAM_SUM mram_sum
@@ -99,13 +102,18 @@ register_benchmark() {
 }
 
 register_benchmark 'this.assemblables["INCREMENT"] = new(prim.Increment)'
+register_benchmark 'this.assemblables["DISTRIBUTED_SUM"] = new(prim.DistributedSum)'
+register_benchmark 'this.assemblables["DISTRIBUTED_SUM_MRAM"] = new(prim.DistributedSumMram)'
+register_benchmark 'this.assemblables["SCALAR_WORKLOAD"] = new(prim.ScalarWorkload)'
 register_benchmark 'this.assemblables["LOOP_ADD"] = new(prim.LoopAdd)'
 register_benchmark 'this.assemblables["WRAM_SUM"] = new(prim.WramSum)'
 register_benchmark 'this.assemblables["MRAM_SUM"] = new(prim.MramSum)'
 register_benchmark 'this.assemblables["TASKLET_SUM"] = new(prim.TaskletSum)'
 
 if command -v gofmt >/dev/null; then
-    gofmt -w "${REGISTRY}" "${UPIMULATOR_ROOT}/src/assembler/prim/"{increment,loop_add,wram_sum,mram_sum,tasklet_sum,simple_sum_common}.go
+    gofmt -w "${REGISTRY}" \
+        "${UPIMULATOR_ROOT}/src/assembler/prim/"{increment,distributed_sum,distributed_sum_mram,scalar_workload,loop_add,wram_sum,mram_sum,tasklet_sum,simple_sum_common}.go \
+        "${UPIMULATOR_ROOT}/src/simulator/host/channel_transfer_read_job.go"
 fi
 
 printf 'Installed uPIMulator capstone experiments in %s\n' "${UPIMULATOR_ROOT}"

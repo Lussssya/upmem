@@ -1,0 +1,11 @@
+# Arbitrary uint32 values for the CPU–DPU distribution demo.
+17
+3
+99
+0
+42
+8
+1000
+7
+11
+250

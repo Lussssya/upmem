@@ -1,0 +1,3 @@
+# Presentation input: [3, 4, 7, 8, 10]
+# Known results: sum=32, maximum=10, count_even=3
+3, 4, 7, 8, 10

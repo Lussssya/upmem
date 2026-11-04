@@ -23,6 +23,8 @@ Every directory under `experiments/` keeps the important parts separate:
 | `wram_sum` | elements, 1–256 | WRAM summation baseline |
 | `mram_sum` | elements, 1–256 | Explicit MRAM-to-WRAM block transfers |
 | `tasklet_sum` | tasklets, 1–24 | Intra-DPU parallelism and synchronization overhead |
+| `distributed_sum` | arbitrary values/tasklets | WRAM backend for the CPU–DPU distribution engine |
+| `distributed_sum_mram` | arbitrary values/tasklets | MRAM/DMA backend for the CPU–DPU distribution engine |
 
 All experiments use one simulated DPU. Only `tasklet_sum` changes the tasklet
 count.
@@ -67,6 +69,37 @@ cd uPIMulator/golang/uPIMulator
 
 Successful runs end with `PASS` and a `SUMMARY`. The cycle value is read from
 `Logic[0_0_0]_logic_cycle` in `bin/<experiment>/log.txt`.
+
+## CPU–DPU distribution engine
+
+The active implementation is a generic compiled C plugin engine with CPU-only,
+simulated-DPU-only, and manually partitioned hybrid modes. It supports WRAM or
+MRAM kernels and 1–24 tasklets. Sum, maximum, and count-even are example
+plugins.
+
+```bash
+make -C upimulator/engine/c
+
+upimulator/engine/c/engine \
+  --workload upimulator/engine/c/workloads/sum/plugin.so --mode cpu \
+  --input upimulator/engine/examples/mixed_values.txt
+
+upimulator/engine/c/engine \
+  --workload upimulator/engine/c/workloads/max/plugin.so \
+  --mode hybrid --cpu-share 0.4 \
+  --dpu-memory mram --tasklets 8 \
+  --input upimulator/engine/examples/mixed_values.txt
+```
+
+For the reproducible presentation demo:
+
+```bash
+UPIMULATOR_ROOT=~/pim/upimulator/golang/uPIMulator \
+  ./upimulator/engine/c/demo.sh
+```
+
+See [`engine/c/README.md`](engine/c/README.md) for the C architecture, input
+format, limits, and tests. The Python MVP remains under `engine/` as a reference.
 
 ## Portable native-build overlay
 

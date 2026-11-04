@@ -38,6 +38,27 @@ experiments for studying simulated DPU cycles:
 - `mram_sum`
 - `tasklet_sum`
 
+It also contains a correctness-focused generic C CPU–DPU distribution engine.
+Runtime-loaded plugins supply the operation, CPU implementation, combination
+semantics, and WRAM/MRAM DPU kernels. Sum, maximum, and count-even are included
+examples:
+
+```bash
+make -C upimulator/engine/c
+upimulator/engine/c/engine \
+  --workload upimulator/engine/c/workloads/sum/plugin.so \
+  --mode hybrid --cpu-share 0.4 \
+  --dpu-memory mram --tasklets 8 \
+  --input upimulator/engine/examples/mixed_values.txt
+```
+
+Run the six-case presentation demo with:
+
+```bash
+UPIMULATOR_ROOT=~/pim/upimulator/golang/uPIMulator \
+  ./upimulator/engine/c/demo.sh
+```
+
 uPIMulator models the host, channel, rank, DPU, tasklet scheduler, instruction
 pipeline, WRAM, MRAM, DMA, and memory controller. These experiments use its
 existing `Logic[0_0_0]_logic_cycle` statistic—not host wall-clock time—and keep
