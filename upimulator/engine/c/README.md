@@ -162,9 +162,9 @@ UPIMULATOR_ROOT=~/pim/upimulator/golang/uPIMulator \
 The fake runner is used only for malformed-output, stale-file, bad-cycle, and
 incorrect-result paths. Other DPU cases execute the real Go simulator.
 
-Normal C-engine build and execution do not invoke Python. The old Python MVP
-is retained in the parent directory. The one-time `upimulator/install.sh`
-compatibility step still uses Python.
+Normal C-engine build and execution do not invoke Python. The one-time
+`upimulator/install.sh` compatibility step and uPIMulator's native build
+helpers still use Python.
 
 Output directories and the generic benchmark source slot are shared, so
 concurrent engine invocations are not supported.

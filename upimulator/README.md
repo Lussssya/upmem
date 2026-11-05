@@ -99,7 +99,7 @@ UPIMULATOR_ROOT=~/pim/upimulator/golang/uPIMulator \
 ```
 
 See [`engine/c/README.md`](engine/c/README.md) for the C architecture, input
-format, limits, and tests. The Python MVP remains under `engine/` as a reference.
+format, limits, and tests.
 
 ## Portable native-build overlay
 
