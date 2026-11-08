@@ -1,7 +1,7 @@
 CC ?= cc
 CPPFLAGS := -D_POSIX_C_SOURCE=200809L -Iinclude
-CFLAGS := -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror
-LDLIBS := -lm
+CFLAGS := -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror -pthread
+LDLIBS := -lm -pthread
 ifeq ($(shell uname -s),Linux)
 LDLIBS += -ldl
 endif
@@ -18,6 +18,8 @@ OBJECTS := $(SOURCES:.c=.o)
 PLUGIN_SOURCES := $(wildcard workloads/*/plugin.c)
 PLUGINS := $(PLUGIN_SOURCES:.c=.so)
 TEST_PLUGIN := tests/incompatible_plugin.so
+OVERLAP_TEST_PLUGIN := tests/overlap_plugin.so
+JOIN_FAILURE_INJECTOR := tests/join_failure_injector.so
 
 .PHONY: all clean test
 
@@ -35,8 +37,15 @@ workloads/%.so: workloads/%.c include/workload_plugin.h
 tests/incompatible_plugin.so: tests/incompatible_plugin.c include/workload_plugin.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -shared $< -o $@
 
-test: all $(TEST_PLUGIN)
+tests/overlap_plugin.so: tests/overlap_plugin.c include/workload_plugin.h
+	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -shared $< -o $@
+
+tests/join_failure_injector.so: tests/join_failure_injector.c
+	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -shared $< -o $@
+
+test: all $(TEST_PLUGIN) $(OVERLAP_TEST_PLUGIN) $(JOIN_FAILURE_INJECTOR)
 	./tests/test_engine.sh
 
 clean:
-	rm -f $(OBJECTS) engine $(PLUGINS) $(TEST_PLUGIN)
+	rm -f $(OBJECTS) engine $(PLUGINS) $(TEST_PLUGIN) \
+		$(OVERLAP_TEST_PLUGIN) $(JOIN_FAILURE_INJECTOR)

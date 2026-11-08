@@ -13,27 +13,39 @@ a compatible plugin is added.
                     | WRAM task.c / MRAM task.c
                     v
 CLI -> plugin loader -> input loader -> contiguous partitioner
-                                           | CPU partition -> native callback
-                                           |
-                                           ` DPU partition
-                                                    |
-                                                    v
-                                           generic DPU backend
-                                                    |
-                                                    v
-                                      Go adapter -> uPIMulator -> task.c
-                                                    |
-                                                    v
-                                      actual result + simulated cycles
-                                                    |
-                                                    v
-                                         combine + correctness check
+                              |                    |
+                              | CPU partition      | DPU partition
+                              v                    v
+                    hybrid CPU worker       main-thread DPU backend
+                              |                    |
+                    native plugin callback  runner -> uPIMulator -> task.c
+                              |                    |
+                              `------ join --------'
+                                      |
+                                      v
+                           combine + correctness check
 ```
 
 The engine owns input parsing, plugin loading, CPU/DPU/hybrid mode selection,
 contiguous partitioning, backend invocation, output decoding, and correctness
 reporting. A plugin owns the mathematical operation, empty-partition identity,
 partial-result combination, reference result, and both DPU kernels.
+
+In hybrid mode, the engine starts the native CPU callback in a POSIX worker
+thread and immediately launches the simulator from the main thread. It waits
+for both backends before combining their independent partial results. The DPU
+runner is started with `posix_spawn()`, avoiding child-side application code
+after `fork()` in the multithreaded process. CPU-only and DPU-only modes retain
+their direct sequential backend calls.
+
+This overlap is a host execution property, not a performance claim. Reported
+`logic_cycle` remains simulated DPU time only; it does not include native CPU
+time, simulator wall-clock time, or an end-to-end heterogeneous speedup.
+
+The CPU worker is always joined before plugin unload. A join failure has no safe
+recovery path because the worker may still reference engine stack storage and
+execute plugin code. In that exceptional case the engine prints a fatal error
+and terminates with `_Exit()` so it cannot unwind the stack or call `dlclose()`.
 
 The public ABI is [`include/workload_plugin.h`](include/workload_plugin.h).
 It supports this deliberately limited family:
@@ -159,8 +171,9 @@ UPIMULATOR_ROOT=~/pim/upimulator/golang/uPIMulator \
   make -C upimulator/engine/c test
 ```
 
-The fake runner is used only for malformed-output, stale-file, bad-cycle, and
-incorrect-result paths. Other DPU cases execute the real Go simulator.
+The fake runners are used only for malformed-output, stale-file, bad-cycle,
+incorrect-result, and explicit CPU/DPU-overlap checks. Other DPU cases execute
+the real Go simulator.
 
 Normal C-engine build and execution do not invoke Python. The one-time
 `upimulator/install.sh` compatibility step and uPIMulator's native build

@@ -9,6 +9,8 @@ SUM_PLUGIN="${ENGINE_DIR}/workloads/sum/plugin.so"
 MAX_PLUGIN="${ENGINE_DIR}/workloads/max/plugin.so"
 COUNT_EVEN_PLUGIN="${ENGINE_DIR}/workloads/count_even/plugin.so"
 INCOMPATIBLE_PLUGIN="${TEST_DIR}/incompatible_plugin.so"
+OVERLAP_PLUGIN="${TEST_DIR}/overlap_plugin.so"
+JOIN_FAILURE_INJECTOR="${TEST_DIR}/join_failure_injector.so"
 UPIMULATOR_ROOT="${UPIMULATOR_ROOT:-${HOME}/pim/upimulator/golang/uPIMulator}"
 TEMP_DIR="$(mktemp -d)"
 FAKE_ROOT="${TEMP_DIR}/fake-upimulator"
@@ -149,9 +151,12 @@ printf '7,7,7,7,7,7,7,7,7\n' > "${TEMP_DIR}/repeated.txt"
 printf '1,4294967295,8,4294967295,3\n' > "${TEMP_DIR}/uint32_max.txt"
 printf '2,4,6,8,10,12,14\n' > "${TEMP_DIR}/all_even.txt"
 printf '1,3,5,7,9\n' > "${TEMP_DIR}/all_odd.txt"
+printf '1,2\n' > "${TEMP_DIR}/overlap.txt"
 mkdir -p "${FAKE_ROOT}"
 cp "${TEST_DIR}/fake_runner.sh" "${FAKE_ROOT}/run_scalar_workload.sh"
+cp "${TEST_DIR}/overlap_runner.sh" "${FAKE_ROOT}/overlap_runner.sh"
 chmod +x "${FAKE_ROOT}/run_scalar_workload.sh"
+chmod +x "${FAKE_ROOT}/overlap_runner.sh"
 
 pass_case cpu_only 1437 \
     --mode cpu --dpu-memory mram --tasklets 24 --input "${SAMPLE_INPUT}"
@@ -270,6 +275,98 @@ if grep -Eiq 'array_sum|array_maximum|count_even|distributed_sum' \
 fi
 PASSED=$((PASSED + 1))
 printf 'PASS: core engine has no sum/max/count-even operation selection\n'
+
+OVERLAP_DIR="${TEMP_DIR}/overlap"
+mkdir -p "${OVERLAP_DIR}"
+OVERLAP_OUTPUT="$(OVERLAP_TEST_DIR="${OVERLAP_DIR}" \
+    "${ENGINE}" --workload "${OVERLAP_PLUGIN}" \
+    --mode hybrid --cpu-share 0.5 --dpu-memory wram --tasklets 1 \
+    --input "${TEMP_DIR}/overlap.txt" --upimulator-root "${FAKE_ROOT}" 2>&1)" || {
+    printf 'FAIL: hybrid CPU/DPU overlap\n%s\n' "${OVERLAP_OUTPUT}" >&2
+    exit 1
+}
+if [[ ! -e "${OVERLAP_DIR}/cpu_started" || ! -e "${OVERLAP_DIR}/dpu_started" ]] ||
+   ! grep -Fq 'CPU partial result: 1' <<< "${OVERLAP_OUTPUT}" ||
+   ! grep -Fq 'DPU partial result: 2' <<< "${OVERLAP_OUTPUT}" ||
+   ! grep -Fq 'Combined result: 3' <<< "${OVERLAP_OUTPUT}" ||
+   ! grep -Fq 'Correctness: PASS' <<< "${OVERLAP_OUTPUT}"; then
+    printf 'FAIL: hybrid CPU/DPU overlap produced invalid evidence\n%s\n' \
+        "${OVERLAP_OUTPUT}" >&2
+    exit 1
+fi
+PASSED=$((PASSED + 1))
+printf 'PASS: hybrid CPU worker overlaps DPU runner\n'
+
+rm -f "${OVERLAP_DIR}/cpu_started" "${OVERLAP_DIR}/dpu_started"
+set +e
+DUAL_FAILURE_OUTPUT="$(OVERLAP_TEST_DIR="${OVERLAP_DIR}" \
+    OVERLAP_CPU_FAIL=1 OVERLAP_DPU_FAIL=1 \
+    "${ENGINE}" --workload "${OVERLAP_PLUGIN}" \
+    --mode hybrid --cpu-share 0.5 --dpu-memory wram --tasklets 1 \
+    --input "${TEMP_DIR}/overlap.txt" --upimulator-root "${FAKE_ROOT}" 2>&1)"
+DUAL_FAILURE_STATUS=$?
+set -e
+if (( DUAL_FAILURE_STATUS == 0 )) ||
+   ! grep -Fq 'injected CPU backend failure' <<< "${DUAL_FAILURE_OUTPUT}" ||
+   ! grep -Fq 'DPU backend also failed' <<< "${DUAL_FAILURE_OUTPUT}" ||
+   ! grep -Fq 'injected DPU backend failure' <<< "${DUAL_FAILURE_OUTPUT}"; then
+    printf 'FAIL: simultaneous backend diagnostics\n%s\n' \
+        "${DUAL_FAILURE_OUTPUT}" >&2
+    exit 1
+fi
+PASSED=$((PASSED + 1))
+printf 'PASS: simultaneous backend failures preserve both diagnostics\n'
+
+rm -f "${OVERLAP_DIR}/cpu_started" "${OVERLAP_DIR}/dpu_started"
+set +e
+JOIN_FAILURE_OUTPUT="$(LD_PRELOAD="${JOIN_FAILURE_INJECTOR}" \
+    OVERLAP_TEST_DIR="${OVERLAP_DIR}" \
+    "${ENGINE}" --workload "${OVERLAP_PLUGIN}" \
+    --mode hybrid --cpu-share 0.5 --dpu-memory wram --tasklets 1 \
+    --input "${TEMP_DIR}/overlap.txt" --upimulator-root "${FAKE_ROOT}" 2>&1)"
+JOIN_FAILURE_STATUS=$?
+set -e
+if (( JOIN_FAILURE_STATUS == 0 )) ||
+   ! grep -Fq 'FATAL: cannot wait for CPU worker' <<< "${JOIN_FAILURE_OUTPUT}" ||
+   ! grep -Fq 'terminating without unloading plugin' <<< "${JOIN_FAILURE_OUTPUT}"; then
+    printf 'FAIL: pthread_join failure did not fail-stop safely\n%s\n' \
+        "${JOIN_FAILURE_OUTPUT}" >&2
+    exit 1
+fi
+PASSED=$((PASSED + 1))
+printf 'PASS: pthread_join failure uses fail-stop cleanup policy\n'
+
+set +e
+"${ENGINE}" --workload "${OVERLAP_PLUGIN}" \
+    --mode dpu --dpu-memory wram --tasklets 1 \
+    --input "${TEMP_DIR}/overlap.txt" --upimulator-root "${FAKE_ROOT}" \
+    1>&- 2>&-
+CLOSED_STDIO_STATUS=$?
+set -e
+if (( CLOSED_STDIO_STATUS != 0 )); then
+    printf 'FAIL: posix_spawn redirection with closed stdout/stderr\n' >&2
+    exit 1
+fi
+PASSED=$((PASSED + 1))
+printf 'PASS: posix_spawn redirection handles closed stdout/stderr\n'
+
+reset_fake_backend
+set +e
+HYBRID_FAILURE_OUTPUT="$(FAKE_DPU_CASE=incomplete_output \
+    "${ENGINE}" --workload "${SUM_PLUGIN}" \
+    --mode hybrid --cpu-share 0.5 --dpu-memory wram --tasklets 1 \
+    --input "${SAMPLE_INPUT}" --upimulator-root "${FAKE_ROOT}" 2>&1)"
+HYBRID_FAILURE_STATUS=$?
+set -e
+if (( HYBRID_FAILURE_STATUS == 0 )) ||
+   ! grep -Fq 'captured DPU output has 3 byte values; expected exactly 4' \
+       <<< "${HYBRID_FAILURE_OUTPUT}"; then
+    printf 'FAIL: hybrid backend failure cleanup\n%s\n' \
+        "${HYBRID_FAILURE_OUTPUT}" >&2
+    exit 1
+fi
+PASSED=$((PASSED + 1))
+printf 'PASS: hybrid backend failure joins CPU worker and returns error\n'
 
 reset_fake_backend
 printf '157\n5\n0\n0\n' > "${FAKE_ROOT}/bin/scalar_workload_sum_wram_1/actual_output.bin"

@@ -4,14 +4,17 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <inttypes.h>
 #include <limits.h>
+#include <spawn.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+
+extern char **environ;
 
 static int make_path(
     char *destination,
@@ -67,49 +70,98 @@ static int run_simulator(
 {
     char log_template[] = "/tmp/upimulator-engine-XXXXXX";
     int log_fd = mkstemp(log_template);
+    posix_spawn_file_actions_t file_actions;
+    char *const arguments[] = {
+        (char *)runner,
+        "--kernel-source",
+        (char *)kernel_source,
+        "--output-tag",
+        (char *)output_tag,
+        "--memory",
+        (char *)memory,
+        "--tasklets",
+        (char *)tasklets,
+        "--expected",
+        (char *)expected_result,
+        "--values",
+        (char *)values_csv,
+        NULL,
+    };
     pid_t child;
+    int actions_initialized = 0;
+    int action_status;
+    int spawn_status;
     int status;
 
     if (log_fd < 0) {
         snprintf(error, error_capacity, "cannot create simulator output file: %s", strerror(errno));
         return -1;
     }
+    if (log_fd <= STDERR_FILENO) {
+        int replacement = fcntl(log_fd, F_DUPFD, STDERR_FILENO + 1);
 
-    child = fork();
-    if (child < 0) {
-        snprintf(error, error_capacity, "cannot start uPIMulator: %s", strerror(errno));
+        if (replacement < 0) {
+            snprintf(
+                error,
+                error_capacity,
+                "cannot prepare simulator output file: %s",
+                strerror(errno));
+            close(log_fd);
+            unlink(log_template);
+            return -1;
+        }
+        close(log_fd);
+        log_fd = replacement;
+    }
+
+    action_status = posix_spawn_file_actions_init(&file_actions);
+    if (action_status == 0) {
+        actions_initialized = 1;
+        action_status = posix_spawn_file_actions_adddup2(
+            &file_actions,
+            log_fd,
+            STDOUT_FILENO);
+    }
+    if (action_status == 0) {
+        action_status = posix_spawn_file_actions_adddup2(
+            &file_actions,
+            log_fd,
+            STDERR_FILENO);
+    }
+    if (action_status == 0) {
+        action_status = posix_spawn_file_actions_addclose(&file_actions, log_fd);
+    }
+    if (action_status != 0) {
+        snprintf(
+            error,
+            error_capacity,
+            "cannot start uPIMulator: %s",
+            strerror(action_status));
+        if (actions_initialized) {
+            posix_spawn_file_actions_destroy(&file_actions);
+        }
         close(log_fd);
         unlink(log_template);
         return -1;
     }
-
-    if (child == 0) {
-        char *const arguments[] = {
-            (char *)runner,
-            "--kernel-source",
-            (char *)kernel_source,
-            "--output-tag",
-            (char *)output_tag,
-            "--memory",
-            (char *)memory,
-            "--tasklets",
-            (char *)tasklets,
-            "--expected",
-            (char *)expected_result,
-            "--values",
-            (char *)values_csv,
-            NULL,
-        };
-
-        if (dup2(log_fd, STDOUT_FILENO) < 0 || dup2(log_fd, STDERR_FILENO) < 0) {
-            _exit(126);
-        }
-        close(log_fd);
-        execv(runner, arguments);
-        _exit(127);
-    }
-
+    spawn_status = posix_spawn(
+        &child,
+        runner,
+        &file_actions,
+        NULL,
+        arguments,
+        environ);
+    posix_spawn_file_actions_destroy(&file_actions);
     close(log_fd);
+    if (spawn_status != 0) {
+        snprintf(
+            error,
+            error_capacity,
+            "cannot start uPIMulator: %s",
+            strerror(spawn_status));
+        unlink(log_template);
+        return -1;
+    }
     while (waitpid(child, &status, 0) < 0) {
         if (errno != EINTR) {
             snprintf(error, error_capacity, "failed waiting for uPIMulator: %s", strerror(errno));
