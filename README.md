@@ -88,3 +88,25 @@ cd uPIMulator/golang/uPIMulator
 
 See [`upimulator/README.md`](upimulator/README.md) for prerequisites, complete
 installation steps, experiment parameters, and all run commands.
+
+### FAISS IVF-Flat CPU baseline
+
+[`ann/faiss_cpu/`](ann/faiss_cpu/) provides an L2 nearest-neighbor baseline using
+FAISS IVF-Flat and exact Flat search. It includes correctness tests, configurable
+benchmarks, cluster/workload analysis, and [recorded results and plots](ann/faiss_cpu/benchmarks/large/).
+
+From the repository root:
+
+```sh
+cd ann/faiss_cpu
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install -r benchmark-requirements-lock.txt
+python -m unittest discover -s tests -v
+python ivf_flat.py
+python benchmark.py --config configs/large.json
+```
+
+See the [experiment README](ann/faiss_cpu/README.md) for input formats and options.
+Benchmark output goes to ignored `results/`; measurements are CPU wall-clock
+times and are not directly comparable to simulated DPU cycles.
