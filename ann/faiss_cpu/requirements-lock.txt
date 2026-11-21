@@ -1,4 +1,0 @@
-# Exact environment validated on Linux x86_64 with Python 3.12.3.
-faiss-cpu==1.16.0
-numpy==2.5.5
-packaging==26.3
