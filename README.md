@@ -89,12 +89,3 @@ cd uPIMulator/golang/uPIMulator
 See [`upimulator/README.md`](upimulator/README.md) for prerequisites, complete
 installation steps, experiment parameters, and all run commands.
 
-### FAISS IVF-Flat CPU example
-
-[`ann/faiss_cpu/`](ann/faiss_cpu/) is a short example of training and searching
-an IVF-Flat index with FAISS and NumPy. See its README for installation.
-
-```sh
-cd ann/faiss_cpu
-python ivf_flat.py
-```

@@ -16,12 +16,3 @@ upimulator/**/options.txt
 *.py[cod]
 *$py.class
 
-# FAISS generated datasets and temporary benchmark output
-ann/faiss_cpu/results/
-ann/faiss_cpu/**/*.npy
-ann/faiss_cpu/**/*.npz
-ann/faiss_cpu/.cache/
-ann/faiss_cpu/tmp/
-ann/faiss_cpu/temp/
-ann/faiss_cpu/**/*.tmp
-ann/faiss_cpu/**/*.log

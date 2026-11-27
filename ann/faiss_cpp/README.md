@@ -1,9 +1,8 @@
 # FAISS C++ IVF-Flat on SIFT-small
 
-This is the native C++ CPU baseline corresponding to
-`../faiss_cpu/ivf_flat.py`. It loads the official TEXMEX SIFT-small files,
-trains `faiss::IndexIVFFlat`, searches the base vectors, and validates the
-results against both TEXMEX ground truth and exact `faiss::IndexFlatL2`.
+This native C++ CPU baseline loads the official TEXMEX SIFT-small files, trains
+`faiss::IndexIVFFlat`, searches the base vectors, and validates the results
+against both TEXMEX ground truth and exact `faiss::IndexFlatL2`.
 
 It does not implement metadata filtering or DPU execution. The input, search,
 and evaluation code are kept separate enough to add metadata and selectors in
